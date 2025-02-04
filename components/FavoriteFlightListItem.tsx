@@ -1,8 +1,14 @@
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Text } from './Themed';
 import { Ionicons } from '@expo/vector-icons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import AntDesign from '@expo/vector-icons/AntDesign';
 import Colors from '../constants/Colors';
 import { FlightPhase } from '../utils/flightCalculations';
+import { Swipeable } from 'react-native-gesture-handler';
+import Animated, { FadeOut } from 'react-native-reanimated';
+import { useRef } from 'react';
+
 
 interface LiveFlightData {
   altitude?: string;
@@ -30,10 +36,32 @@ interface FavoriteFlightProps {
   };
   liveData?: LiveFlightData;
   onPress?: () => void;
+  onDelete?: () => void;
 }
 
-export default function FavoriteFlightListItem({ flight, liveData, onPress }: FavoriteFlightProps) {
+const RightActions = () => {
+  return (
+    <View style={styles.deleteContainer}>
+      <Ionicons name="trash" size={24} color="white" />
+    </View>
+  );
+};
+
+export default function FavoriteFlightListItem({ flight, liveData, onPress, onDelete }: FavoriteFlightProps) {
+  const swipeableRef = useRef<Swipeable>(null);
   const isCompleted = flight.completed_at !== null;
+
+  const handleDelete = () => {
+    if (onDelete) {
+      swipeableRef.current?.close();
+      Alert.alert(
+        'Done!',
+        'Flight has been removed from your favorites',
+        [{ text: 'OK' }]
+      );
+      onDelete();
+    }
+  };
 
   // Format the completion time and duration if the flight is completed
   const formatDuration = (seconds: number) => {
@@ -65,46 +93,30 @@ export default function FavoriteFlightListItem({ flight, liveData, onPress }: Fa
     <View style={styles.container}>
       <View style={styles.leftContent}>
         <View style={styles.callsignContainer}>
-          <Ionicons 
-            name={isCompleted ? "checkmark-circle" : "airplane"} 
-            size={20} 
-            color={isCompleted ? Colors.primary : Colors.light.tint} 
-          />
           <Text style={styles.callsign}>{flight.callsign}</Text>
           <View style={[styles.badge, isCompleted && styles.completedBadge]}>
-            <Text style={styles.badgeText}>
+            <Text style={[styles.badgeText, isCompleted && styles.completedBadgeText]}>
               {isCompleted ? 'Completed' : flight.aircraft}
             </Text>
           </View>
         </View>
         <View style={styles.routeContainer}>
           <View style={styles.airportContainer}>
-            <Ionicons name="location" size={16} color={Colors.light.tint} />
+            <MaterialCommunityIcons name="airplane-takeoff" size={16} color={Colors.blue} />
             <Text style={styles.airport}>{flight.departure}</Text>
           </View>
           <View style={styles.separatorContainer}>
-            <Ionicons name="arrow-forward" size={16} color={Colors.light.tabIconDefault} />
+            <AntDesign name="minus" size={16} color={Colors.light.tabIconDefault} />
           </View>
           <View style={styles.airportContainer}>
-            <Ionicons name="location" size={16} color={Colors.light.tint} />
+            <MaterialCommunityIcons name="airplane-landing" size={16} color={Colors.blue} />
             <Text style={styles.airport}>{flight.arrival}</Text>
           </View>
         </View>
         {isCompleted && flight.completed_at && flight.flight_duration && (
           <View style={styles.completionContainer}>
             <Text style={styles.completionText}>
-              {`Completed ${formatCompletionTime(flight.completed_at)} • Duration: ${formatDuration(flight.flight_duration)}`}
-            </Text>
-          </View>
-        )}
-        {!isCompleted && liveData && (
-          <View style={styles.liveDataContainer}>
-            <Text style={styles.liveDataText}>
-              {[
-                liveData.altitude && `${liveData.altitude} ft`,
-                liveData.groundspeed && `${liveData.groundspeed} kts`,
-                `${Math.floor(liveData.distanceFlown)} / ${Math.floor(liveData.totalDistance)} NM`
-              ].filter(Boolean).join(' • ')}
+              {`Completed ${formatCompletionTime(flight.completed_at)}`}
             </Text>
           </View>
         )}
@@ -113,15 +125,28 @@ export default function FavoriteFlightListItem({ flight, liveData, onPress }: Fa
     </View>
   );
 
+  const wrappedContent = (
+    <Animated.View exiting={FadeOut}>
+      <Swipeable
+        ref={swipeableRef}
+        renderRightActions={() => <RightActions />}
+        onSwipeableOpen={handleDelete}
+        rightThreshold={40}
+      >
+        {content}
+      </Swipeable>
+    </Animated.View>
+  );
+
   if (onPress && !isCompleted) {
     return (
       <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
-        {content}
+        {wrappedContent}
       </TouchableOpacity>
     );
   }
 
-  return content;
+  return wrappedContent;
 }
 
 const styles = StyleSheet.create({
@@ -153,10 +178,15 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   completedBadge: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.greenLight,
+  },
+  completedBadgeText: {
+    color: Colors.green,
+    fontSize: 12,
+    fontWeight: '500',
   },
   badgeText: {
-    color: 'white',
+    color: Colors.blue,
     fontSize: 12,
     fontWeight: '500',
   },
@@ -191,5 +221,11 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  deleteContainer: {
+    backgroundColor: Colors.red,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
   },
 }); 

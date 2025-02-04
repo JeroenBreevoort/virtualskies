@@ -2,13 +2,14 @@ import { View, StyleSheet, FlatList, RefreshControl } from 'react-native';
 import { Text } from '../../components/Themed';
 import Colors from '../../constants/Colors';
 import { useDatabase } from '../../utils/DatabaseContext';
-import { getFavoriteFlights, markFlightAsCompleted } from '../../utils/Database';
+import { getFavoriteFlights, markFlightAsCompleted, removeFavoriteFlight } from '../../utils/Database';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import FavoriteFlightListItem from '../../components/FavoriteFlightListItem';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import FlightDetailsSheet from '../../components/FlightDetailsSheet';
 import { FlightPhase, calculateFlightProgress } from '../../utils/flightCalculations';
 import { airlines } from '../../utils/airlines';
+import { NotificationService } from '../../utils/NotificationService';
 
 const UPDATE_INTERVAL = 15000; // 15 seconds
 const INTERPOLATION_STEP = 1000; // 1 second
@@ -23,6 +24,7 @@ interface FavoriteFlight {
   completed_at: number | null;
   flight_duration: number | null;
   flight_data: string | null;
+  favorited_at: number;
 }
 
 interface LiveFlightData {
@@ -141,73 +143,62 @@ export default function SettingsScreen() {
 
   const fetchLiveFlightData = useCallback(async () => {
     try {
-      const activeFlights = favorites.filter(f => !f.completed_at);
-      if (activeFlights.length === 0) return;
-
       const response = await fetch('https://data.vatsim.net/v3/vatsim-data.json');
       const data = await response.json();
       const currentTime = new Date();
-
       const newLiveData: Record<string, LiveFlightData> = {};
       const completedFlights: string[] = [];
-      
-      for (const flight of activeFlights) {
-        const pilot = data.pilots.find((p: any) => p.callsign === flight.callsign);
-        if (pilot) {
-          const existingData = liveFlightData[flight.callsign];
-          
+
+      // Process pilots data
+      for (const pilot of data.pilots) {
+        const callsign = pilot.callsign;
+        const favorite = favorites.find(f => f.callsign === callsign);
+        
+        if (favorite && !favorite.completed_at) {
           const flightProgress = calculateFlightProgress(
             pilot.flight_plan?.departure || '',
             pilot.flight_plan?.arrival || '',
-            { 
-              lat: pilot.latitude, 
-              lng: pilot.longitude 
-            },
-            parseFloat(pilot.altitude) || 0,
-            parseFloat(pilot.groundspeed) || 0,
-            existingData?.altitude ? parseFloat(existingData.altitude) : undefined,
-            existingData?.lastUpdate,
-            currentTime,
-            parseFloat(pilot.flight_plan?.altitude) || 0
+            { lat: pilot.latitude, lng: pilot.longitude },
+            parseFloat(pilot.altitude),
+            parseFloat(pilot.groundspeed),
+            undefined,
+            undefined,
+            currentTime
           );
 
           if (flightProgress) {
-            const isNewlyArrived = flightProgress.currentPhase === FlightPhase.ARRIVED && 
-                                (!existingData?.phase || existingData.phase !== FlightPhase.ARRIVED);
-
-            newLiveData[flight.callsign] = {
-              altitude: pilot.altitude?.toString(),
-              groundspeed: pilot.groundspeed?.toString(),
-              heading: pilot.heading?.toString(),
-              status: pilot.flight_plan?.status,
+            const liveData: LiveFlightData = {
+              altitude: pilot.altitude,
+              groundspeed: pilot.groundspeed,
+              heading: pilot.heading,
+              status: pilot.flight_plan?.status || '',
               phase: flightProgress.currentPhase,
               progress: flightProgress.progress,
               distanceFlown: flightProgress.distanceFlown,
               totalDistance: flightProgress.totalDistance,
               latitude: pilot.latitude,
               longitude: pilot.longitude,
-              lastUpdate: currentTime,
-              arrivedAt: isNewlyArrived ? Date.now() : existingData?.arrivedAt
+              lastUpdate: currentTime
             };
 
-            // Check if flight should be marked as completed
-            const currentFlightData = newLiveData[flight.callsign];
-            const arrivedAt = currentFlightData.arrivedAt;
-            
-            const hasBeenArrivedLongEnough = arrivedAt && (Date.now() - arrivedAt >= 30000);
-                                    
-            if (flightProgress.currentPhase === FlightPhase.ARRIVED && hasBeenArrivedLongEnough) {
-              // Mark as completed
-              completedFlights.push(flight.callsign);
-              const flightDuration = Math.floor((Date.now() - arrivedAt) / 1000);
+            newLiveData[callsign] = liveData;
+
+            // Check if flight just completed
+            if (flightProgress.currentPhase === FlightPhase.ARRIVED && !favorite.completed_at) {
+              completedFlights.push(callsign);
               
+              // Mark the flight as completed in the database
+              const flightDuration = Math.floor((currentTime.getTime() - favorite.favorited_at) / 1000);
               await markFlightAsCompleted(
                 db,
-                flight.callsign,
-                Date.now(),
+                callsign,
+                currentTime.getTime(),
                 flightDuration,
-                JSON.stringify(currentFlightData)
+                JSON.stringify(liveData)
               );
+              
+              // Send notification for completed flight
+              await NotificationService.scheduleFlightCompletionNotification(callsign);
             }
           }
         }
@@ -218,13 +209,13 @@ export default function SettingsScreen() {
         const completedFlight = favorites.find(f => f.callsign === selectedFlight.callsign);
         if (completedFlight) {
           const lastKnownData = liveFlightData[selectedFlight.callsign];
-          setSelectedFlight({
+          setSelectedFlight(prev => ({
             ...selectedFlight,
             phase: FlightPhase.ARRIVED,
             progress: 100,
-            completedAt: Date.now(),
-            flightDuration: Math.floor((Date.now() - lastKnownData.lastUpdate.getTime()) / 1000)
-          });
+            completedAt: currentTime.getTime(),
+            flightDuration: Math.floor((currentTime.getTime() - lastKnownData.lastUpdate.getTime()) / 1000)
+          }));
         }
       }
 
@@ -250,9 +241,9 @@ export default function SettingsScreen() {
         loadFavorites();
       }
     } catch (error) {
-      console.error('Error fetching live flight data:', error);
+      console.error('Error fetching live data:', error);
     }
-  }, [favorites, liveFlightData, selectedFlight, db, loadFavorites]);
+  }, [favorites, db, loadFavorites, liveFlightData, selectedFlight]);
 
   // Update time display every second when showing an active flight
   useEffect(() => {
@@ -351,6 +342,15 @@ export default function SettingsScreen() {
     bottomSheetRef.current?.present();
   }, [liveFlightData]);
 
+  const handleDelete = useCallback(async (callsign: string) => {
+    try {
+      await removeFavoriteFlight(db, callsign);
+      await loadFavorites();
+    } catch (error) {
+      console.error('Error removing favorite flight:', error);
+    }
+  }, [db, loadFavorites]);
+
   const renderHeader = useCallback(() => (
     <View style={styles.header}>
       <Text style={styles.title}>Favorite Flights</Text>
@@ -368,6 +368,7 @@ export default function SettingsScreen() {
           <FavoriteFlightListItem 
             flight={item}
             onPress={() => handleFlightPress(item)}
+            onDelete={() => handleDelete(item.callsign)}
             liveData={!item.completed_at ? liveFlightData[item.callsign] : undefined}
           />
         )}

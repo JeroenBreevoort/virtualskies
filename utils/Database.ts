@@ -48,44 +48,65 @@ interface FavoriteFlight {
 }
 
 export const addFavoriteFlight = async (db: SQLiteDatabase, flight: Omit<FavoriteFlight, 'id'>) => {
-  return await db.runAsync(
-    `INSERT INTO favorite_flights (
-      callsign, departure, arrival, aircraft, airline_name, 
-      favorited_at, completed_at, flight_duration, flight_data
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      flight.callsign,
-      flight.departure,
-      flight.arrival,
-      flight.aircraft,
-      flight.airline_name || null,
-      flight.favorited_at,
-      flight.completed_at || null,
-      flight.flight_duration || null,
-      flight.flight_data || null
-    ]
-  );
+  try {
+    await db.runAsync(
+      `INSERT INTO favorite_flights (
+        callsign, departure, arrival, aircraft, airline_name, 
+        favorited_at, completed_at, flight_duration, flight_data
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        flight.callsign,
+        flight.departure,
+        flight.arrival,
+        flight.aircraft,
+        flight.airline_name || null,
+        flight.favorited_at,
+        flight.completed_at || null,
+        flight.flight_duration || null,
+        flight.flight_data || null
+      ]
+    );
+  } catch (error) {
+    console.error('Error in addFavoriteFlight:', error);
+    throw error;
+  }
 };
 
 export const removeFavoriteFlight = async (db: SQLiteDatabase, callsign: string) => {
-  return await db.runAsync('DELETE FROM favorite_flights WHERE callsign = ?', [callsign]);
+  try {
+    await db.runAsync('DELETE FROM favorite_flights WHERE callsign = ?', [callsign]);
+  } catch (error) {
+    console.error('Error in removeFavoriteFlight:', error);
+    throw error;
+  }
 };
 
 export const getFavoriteFlights = async (db: SQLiteDatabase) => {
-  return await db.getAllAsync<FavoriteFlight>(`
-    SELECT * FROM favorite_flights 
-    ORDER BY 
-      completed_at IS NULL DESC,  -- Active flights first (completed_at is NULL)
-      completed_at DESC           -- Then most recently completed
-  `);
+  try {
+    const result = await db.getAllAsync<FavoriteFlight>(`
+      SELECT * FROM favorite_flights 
+      ORDER BY 
+        completed_at IS NULL DESC,  -- Active flights first (completed_at is NULL)
+        completed_at DESC           -- Then most recently completed
+    `);
+    return result;
+  } catch (error) {
+    console.error('Error in getFavoriteFlights:', error);
+    throw error;
+  }
 };
 
 export const isFavoriteFlight = async (db: SQLiteDatabase, callsign: string) => {
-  const result = await db.getFirstAsync<{ count: number }>(
-    'SELECT COUNT(*) as count FROM favorite_flights WHERE callsign = ?',
-    [callsign]
-  );
-  return (result?.count ?? 0) > 0;
+  try {
+    const result = await db.getFirstAsync<{ count: number }>(
+      'SELECT COUNT(*) as count FROM favorite_flights WHERE callsign = ?',
+      [callsign]
+    );
+    return (result?.count ?? 0) > 0;
+  } catch (error) {
+    console.error('Error in isFavoriteFlight:', error);
+    throw error;
+  }
 };
 
 export const markFlightAsCompleted = async (
@@ -95,12 +116,17 @@ export const markFlightAsCompleted = async (
   flightDuration: number,
   finalFlightData: string
 ) => {
-  return await db.runAsync(
-    `UPDATE favorite_flights 
-     SET completed_at = ?, 
-         flight_duration = ?,
-         flight_data = ?
-     WHERE callsign = ?`,
-    [completedAt, flightDuration, finalFlightData, callsign]
-  );
+  try {
+    await db.runAsync(
+      `UPDATE favorite_flights 
+       SET completed_at = ?, 
+           flight_duration = ?,
+           flight_data = ?
+       WHERE callsign = ?`,
+      [completedAt, flightDuration, finalFlightData, callsign]
+    );
+  } catch (error) {
+    console.error('Error in markFlightAsCompleted:', error);
+    throw error;
+  }
 };

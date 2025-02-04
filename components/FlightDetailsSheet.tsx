@@ -175,7 +175,7 @@ export default function FlightDetailsSheet({ flight, bottomSheetRef, lastUpdate 
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Ionicons name="airplane" size={24} color={Colors.light.tint} />
+            <Ionicons name="airplane" size={24} color={Colors.blue} />
             <View style={styles.callsignContainer}>
               <View style={styles.callsignRow}>
                 <Text style={styles.callsign}>{flight.callsign}</Text>
@@ -197,12 +197,12 @@ export default function FlightDetailsSheet({ flight, bottomSheetRef, lastUpdate 
         <View style={styles.progressContainer}>
           <View style={styles.progressHeader}>
             <View style={styles.airportCodeContainer}>
-              <Ionicons name="arrow-up-circle" size={20} color={Colors.light.tint} />
+              <Ionicons name="arrow-up-circle" size={20} color={Colors.blue} />
               <Text style={styles.airport}>{flight.departure}</Text>
             </View>
             <FlightStatus phase={flight.phase} />
             <View style={[styles.airportCodeContainer, styles.rightAligned]}>
-              <Ionicons name="arrow-down-circle" size={20} color={Colors.light.tint} />
+              <Ionicons name="arrow-down-circle" size={20} color={Colors.blue} />
               <Text style={styles.airport}>{flight.arrival}</Text>
             </View>
           </View>
@@ -245,7 +245,7 @@ export default function FlightDetailsSheet({ flight, bottomSheetRef, lastUpdate 
                 <Ionicons 
                   name="airplane" 
                   size={20} 
-                  color={Colors.light.tint}
+                  color={Colors.blue}
                   style={{ transform: [{ rotate: '0deg' }] }}
                 />
               </Animated.View>
@@ -257,41 +257,41 @@ export default function FlightDetailsSheet({ flight, bottomSheetRef, lastUpdate 
         <View style={styles.detailsContainer}>
           {!isFlightCompleted && flight.altitude && (
             <View style={styles.detailItem}>
-              <Ionicons name="trending-up" size={20} color={Colors.light.tint} />
+              <Ionicons name="trending-up" size={16} color={Colors.blue} />
               <Text style={styles.detailLabel}>Altitude</Text>
               <Text style={styles.detailValue}>{flight.altitude} ft</Text>
             </View>
           )}
           {!isFlightCompleted && flight.groundspeed && (
             <View style={styles.detailItem}>
-              <Ionicons name="speedometer" size={20} color={Colors.light.tint} />
+              <Ionicons name="speedometer" size={16} color={Colors.blue} />
               <Text style={styles.detailLabel}>Ground Speed</Text>
               <Text style={styles.detailValue}>{flight.groundspeed} kts</Text>
             </View>
           )}
           {!isFlightCompleted && flight.heading && (
             <View style={styles.detailItem}>
-              <Ionicons name="compass" size={20} color={Colors.light.tint} />
+              <Ionicons name="compass" size={16} color={Colors.blue} />
               <Text style={styles.detailLabel}>Heading</Text>
               <Text style={styles.detailValue}>{flight.heading}°</Text>
             </View>
           )}
           {isFlightCompleted && flight.completedAt && (
             <View style={styles.detailItem}>
-              <Ionicons name="time" size={20} color={Colors.light.tint} />
+              <Ionicons name="time" size={16} color={Colors.blue} />
               <Text style={styles.detailLabel}>Completed</Text>
               <Text style={styles.detailValue}>{formatCompletionTime(flight.completedAt)}</Text>
             </View>
           )}
           {isFlightCompleted && flight.flightDuration && (
             <View style={styles.detailItem}>
-              <Ionicons name="timer" size={20} color={Colors.light.tint} />
+              <Ionicons name="timer" size={16} color={Colors.blue} />
               <Text style={styles.detailLabel}>Duration</Text>
               <Text style={styles.detailValue}>{formatDuration(flight.flightDuration)}</Text>
             </View>
           )}
           <View style={styles.detailItem}>
-            <Ionicons name="flag" size={20} color={Colors.light.tint} />
+            <Ionicons name="flag" size={16} color={Colors.blue} />
             <Text style={styles.detailLabel}>Distance Flown</Text>
             <Text style={styles.detailValue}>
               {Math.floor(flight.distanceFlown)} NM
@@ -299,7 +299,7 @@ export default function FlightDetailsSheet({ flight, bottomSheetRef, lastUpdate 
           </View>
           {!isFlightCompleted && (
             <View style={styles.detailItem}>
-              <Ionicons name="flag-outline" size={20} color={Colors.light.tint} />
+              <Ionicons name="flag-outline" size={16} color={Colors.blue} />
               <Text style={styles.detailLabel}>Distance Remaining</Text>
               <Text style={styles.detailValue}>
                 {Math.floor(flight.totalDistance - flight.distanceFlown)} NM
@@ -308,7 +308,7 @@ export default function FlightDetailsSheet({ flight, bottomSheetRef, lastUpdate 
           )}
           {!isFlightCompleted && flight.status && (
             <View style={styles.detailItem}>
-              <Ionicons name="information-circle" size={20} color={Colors.light.tint} />
+              <Ionicons name="information-circle" size={16} color={Colors.blue} />
               <Text style={styles.detailLabel}>Status</Text>
               <Text style={styles.detailValue}>{flight.status}</Text>
             </View>
@@ -348,10 +348,10 @@ export default function FlightDetailsSheet({ flight, bottomSheetRef, lastUpdate 
 
 const styles = StyleSheet.create({
   bottomSheetBackground: {
-    backgroundColor: Colors.light.background,
+    backgroundColor: Colors.white,
   },
   handleIndicator: {
-    backgroundColor: Colors.light.border,
+    backgroundColor: Colors.greyLight,
     width: 40,
   },
   contentContainer: {
@@ -383,26 +383,30 @@ const styles = StyleSheet.create({
   },
   airlineName: {
     fontSize: 14,
-    color: Colors.light.tabIconDefault,
+    color: Colors.grey,
   },
   aircraftBadge: {
-    backgroundColor: Colors.light.tint,
+    backgroundColor: Colors.blueLight,
     borderRadius: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
   aircraftText: {
-    color: 'white',
+    color: Colors.blue,
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: 'bold',
   },
   lastUpdate: {
     fontSize: 12,
-    color: Colors.light.tabIconDefault,
+    color: Colors.grey,
     alignSelf: 'flex-start',
   },
   progressContainer: {
     marginBottom: 24,
+    borderColor: Colors.greyLight,
+    borderWidth: 1,
+    padding: 16,
+    borderRadius: 8,
   },
   progressHeader: {
     flexDirection: 'row',
@@ -439,20 +443,20 @@ const styles = StyleSheet.create({
   },
   airportName: {
     fontSize: 14,
-    color: Colors.light.tabIconDefault,
+    color: Colors.grey,
   },
   progressBarContainer: {
     marginVertical: 8,
   },
   progressBar: {
     height: 4,
-    backgroundColor: Colors.light.border,
+    backgroundColor: Colors.greyLight,
     borderRadius: 2,
     overflow: 'visible',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: Colors.light.tint,
+    backgroundColor: Colors.blue,
     borderRadius: 2,
   },
   airplaneIndicator: {
@@ -461,7 +465,7 @@ const styles = StyleSheet.create({
     transform: [{ translateX: -10 }],
   },
   detailsContainer: {
-    marginTop: 24,
+    marginTop: 8,
   },
   detailItem: {
     flexDirection: 'row',
@@ -478,7 +482,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   favoriteButtonContainer: {
-    padding: 16,
+    paddingTop: 16,
+    paddingBottom: 24,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Colors.light.border,
   },
@@ -491,10 +496,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   unfavoriteButton: {
-    backgroundColor: Colors.pink,
+    backgroundColor: Colors.red,
   },
   disabledButton: {
-    backgroundColor: Colors.light.tabIconDefault,
+    backgroundColor: Colors.grey,
     opacity: 0.7,
   },
   favoriteIcon: {

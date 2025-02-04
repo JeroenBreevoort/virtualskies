@@ -187,6 +187,13 @@ export default function FlightsScreen() {
     setRefreshing(false);
   }, []);
 
+  const handleFavorite = useCallback(async () => {
+    // Refresh the flights list to update UI
+    setRefreshing(true);
+    await fetchFlights();
+    setRefreshing(false);
+  }, [fetchFlights]);
+
   return (
     <View style={styles.container}>
       {loading ? (
@@ -197,14 +204,10 @@ export default function FlightsScreen() {
         <>
           <View style={styles.searchContainer}>
             <TextInput
-              placeholder="Search by callsign"
+              style={styles.searchInput}
+              placeholder="Search flights..."
               value={searchQuery}
               onChangeText={setSearchQuery}
-              style={styles.searchBar}
-              clearButtonMode="while-editing"
-              autoCapitalize="characters"
-              autoCorrect={false}
-              returnKeyType="search"
               placeholderTextColor={Colors.light.tabIconDefault}
             />
           </View>
@@ -212,7 +215,16 @@ export default function FlightsScreen() {
             data={filteredFlights}
             renderItem={({ item }) => (
               <Pressable onPress={() => handlePresentModalPress(item)}>
-                <FlightListItem flight={item} />
+                <FlightListItem 
+                  flight={{
+                    ...item,
+                    phase: item.phase,
+                    progress: item.progress,
+                    distanceFlown: item.distanceFlown,
+                    totalDistance: item.totalDistance
+                  }}
+                  onFavorite={handleFavorite}
+                />
               </Pressable>
             )}
             keyExtractor={(item) => item.callsign}
@@ -274,6 +286,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.background,
   },
   searchBar: {
+    height: 36,
+    backgroundColor: Colors.input,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    fontSize: 16,
+  },
+  searchInput: {
     height: 36,
     backgroundColor: Colors.input,
     borderRadius: 10,
