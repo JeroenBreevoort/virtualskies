@@ -13,7 +13,7 @@ const sharedColors = {
   blue: "#0000FA",
   green: "#172E15",
   grey: "#242026",
-  greyLight: "#B8B3BA",
+  greyLight: "#7C7C7C",
   input: "#EEE9F0",
   selected: "#F7F2F9",
 } as const;
@@ -24,8 +24,9 @@ export default {
     text: "#000",
     background: "#fff",
     tint: tintColorLight,
-    tabIconDefault: "#ccc",
+    tabIconDefault: "#7c7c7c",
     tabIconSelected: tintColorLight,
+    border: "#E5E5E5",
     ...sharedColors,
   },
   dark: {
@@ -34,6 +35,7 @@ export default {
     tint: tintColorDark,
     tabIconDefault: "#ccc",
     tabIconSelected: tintColorDark,
+    border: "#333333",
     ...sharedColors,
   },
 };

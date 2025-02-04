@@ -1,73 +1,106 @@
-import { Message, Role } from '@/utils/Interfaces';
-import { type SQLiteDatabase } from 'expo-sqlite';
+import { SQLiteDatabase } from 'expo-sqlite';
 
 export async function migrateDbIfNeeded(db: SQLiteDatabase) {
-  // Log DB path for debugging
-  // console.log(FileSystem.documentDirectory);
   const DATABASE_VERSION = 1;
   let result = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
-
   let currentDbVersion = result?.user_version ?? 0;
 
   if (currentDbVersion >= DATABASE_VERSION) {
     return;
   }
+
   if (currentDbVersion === 0) {
-    const result = await db.execAsync(`
-PRAGMA journal_mode = 'wal';
-CREATE TABLE chats (
-  id INTEGER PRIMARY KEY NOT NULL, 
-  title TEXT NOT NULL
-);
+    await db.execAsync(`
+      PRAGMA journal_mode = 'wal';
+      
+      CREATE TABLE favorite_flights (
+        id INTEGER PRIMARY KEY NOT NULL,
+        callsign TEXT NOT NULL,
+        departure TEXT NOT NULL,
+        arrival TEXT NOT NULL,
+        aircraft TEXT NOT NULL,
+        airline_name TEXT,
+        favorited_at INTEGER NOT NULL,
+        completed_at INTEGER,
+        flight_duration INTEGER,
+        flight_data TEXT
+      );
 
-CREATE TABLE messages (
-  id INTEGER PRIMARY KEY NOT NULL, 
-  chat_id INTEGER NOT NULL, 
-  content TEXT NOT NULL, 
-  imageUrl TEXT, 
-  role TEXT, 
-  prompt TEXT, 
-  FOREIGN KEY (chat_id) REFERENCES chats (id) ON DELETE CASCADE
-);
-`);
-
+      CREATE INDEX idx_favorite_flights_callsign ON favorite_flights(callsign);
+    `);
     currentDbVersion = 1;
   }
-  // if (currentDbVersion === 1) {
-  //   Add more migrations
-  // }
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
 }
 
-export const addChat = async (db: SQLiteDatabase, title: string) => {
-  return await db.runAsync('INSERT INTO chats (title) VALUES (?)', title);
-};
+interface FavoriteFlight {
+  id?: number;
+  callsign: string;
+  departure: string;
+  arrival: string;
+  aircraft: string;
+  airline_name: string | null;
+  favorited_at: number;
+  completed_at: number | null;
+  flight_duration: number | null;
+  flight_data: string | null;
+}
 
-export const getChats = async (db: SQLiteDatabase) => {
-  return await db.getAllAsync('SELECT * FROM chats');
-};
-
-export const getMessages = async (db: SQLiteDatabase, chatId: number): Promise<Message[]> => {
-  return (await db.getAllAsync<Message>('SELECT * FROM messages WHERE chat_id = ?', chatId)).map((message) => ({
-    ...message,
-    role: '' + message.role === 'bot' ? Role.Bot : Role.User,
-  }));
-};
-
-export const addMessage = async (db: SQLiteDatabase, chatId: number, { content, role }: Message) => {
+export const addFavoriteFlight = async (db: SQLiteDatabase, flight: Omit<FavoriteFlight, 'id'>) => {
   return await db.runAsync(
-    'INSERT INTO messages (chat_id, content, role) VALUES (?, ?, ?)',
-    chatId,
-    content,
-    role === Role.Bot ? 'bot' : 'user',
+    `INSERT INTO favorite_flights (
+      callsign, departure, arrival, aircraft, airline_name, 
+      favorited_at, completed_at, flight_duration, flight_data
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      flight.callsign,
+      flight.departure,
+      flight.arrival,
+      flight.aircraft,
+      flight.airline_name || null,
+      flight.favorited_at,
+      flight.completed_at || null,
+      flight.flight_duration || null,
+      flight.flight_data || null
+    ]
   );
 };
 
-export const deleteChat = async (db: SQLiteDatabase, chatId: number) => {
-  return await db.runAsync('DELETE FROM chats WHERE id = ?', chatId);
+export const removeFavoriteFlight = async (db: SQLiteDatabase, callsign: string) => {
+  return await db.runAsync('DELETE FROM favorite_flights WHERE callsign = ?', [callsign]);
 };
 
-export const renameChat = async (db: SQLiteDatabase, chatId: number, title: string) => {
-  return await db.runAsync('UPDATE chats SET title = ? WHERE id = ?', title, chatId);
+export const getFavoriteFlights = async (db: SQLiteDatabase) => {
+  return await db.getAllAsync<FavoriteFlight>(`
+    SELECT * FROM favorite_flights 
+    ORDER BY 
+      completed_at IS NULL DESC,  -- Active flights first (completed_at is NULL)
+      completed_at DESC           -- Then most recently completed
+  `);
+};
+
+export const isFavoriteFlight = async (db: SQLiteDatabase, callsign: string) => {
+  const result = await db.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM favorite_flights WHERE callsign = ?',
+    [callsign]
+  );
+  return (result?.count ?? 0) > 0;
+};
+
+export const markFlightAsCompleted = async (
+  db: SQLiteDatabase,
+  callsign: string,
+  completedAt: number,
+  flightDuration: number,
+  finalFlightData: string
+) => {
+  return await db.runAsync(
+    `UPDATE favorite_flights 
+     SET completed_at = ?, 
+         flight_duration = ?,
+         flight_data = ?
+     WHERE callsign = ?`,
+    [completedAt, flightDuration, finalFlightData, callsign]
+  );
 };
