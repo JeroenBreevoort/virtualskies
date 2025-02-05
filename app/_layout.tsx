@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import * as SQLite from 'expo-sqlite';
 import { migrateDbIfNeeded } from '../utils/Database';
 import { DatabaseProvider } from '../utils/DatabaseContext';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Text } from 'react-native';
 import Colors from '../constants/Colors';
 import * as SecureStore from 'expo-secure-store';
 import * as Notifications from 'expo-notifications';
@@ -40,24 +40,50 @@ const tokenCache = {
 
 export default function RootLayout() {
   const [db, setDb] = useState<SQLite.SQLiteDatabase | null>(null);
+  const [isReady, setIsReady] = useState(false);
+  const [isError, setIsError] = useState<string | null>(null);
 
   useEffect(() => {
-    const initDatabase = async () => {
-      const database = SQLite.openDatabaseSync('flights.db');
-      await migrateDbIfNeeded(database);
-      setDb(database);
-    };
+    async function prepare() {
+      try {
+        // Initial database setup
+        const database = SQLite.openDatabaseSync('flights.db');
+        
+        // Keep splash screen visible
+        setIsReady(true);
+        
+        // Defer migrations and heavy operations
+        setTimeout(async () => {
+          try {
+            await migrateDbIfNeeded(database);
+            setDb(database);
+            
+            // Defer notification setup
+            setTimeout(async () => {
+              try {
+                await NotificationService.requestPermissions();
+              } catch (error) {
+                console.warn('Notification setup failed:', error);
+              }
+            }, 1000);
+          } catch (error) {
+            console.error('Migration failed:', error);
+            setIsError('Failed to initialize app. Please try again.');
+          }
+        }, 100);
+      } catch (error) {
+        console.error('Critical initialization failed:', error);
+        setIsError('Failed to initialize app. Please try again.');
+      }
+    }
     
-    initDatabase().catch(error => {
-      console.error('Failed to initialize database:', error);
-    });
+    prepare();
   }, []);
 
   useEffect(() => {
-    // Request notification permissions
-    NotificationService.requestPermissions();
+    if (!db) return;
 
-    // Handle notification taps
+    // Only set up notification handling after database is ready
     const subscription = Notifications.addNotificationResponseReceivedListener(response => {
       const screen = response.notification.request.content.data?.screen;
       if (screen === 'settings') {
@@ -66,7 +92,19 @@ export default function RootLayout() {
     });
 
     return () => subscription.remove();
-  }, []);
+  }, [db]);
+
+  if (!isReady) {
+    return null; // Keep splash screen visible
+  }
+
+  if (isError) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+        <Text style={{ textAlign: 'center', marginBottom: 10 }}>{isError}</Text>
+      </View>
+    );
+  }
 
   if (!db) {
     return (
@@ -77,14 +115,14 @@ export default function RootLayout() {
   }
 
   return (
-      <DatabaseProvider db={db}>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <BottomSheetModalProvider>
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            </Stack>
-          </BottomSheetModalProvider>
-        </GestureHandlerRootView>
-      </DatabaseProvider>
+    <DatabaseProvider db={db}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <BottomSheetModalProvider>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          </Stack>
+        </BottomSheetModalProvider>
+      </GestureHandlerRootView>
+    </DatabaseProvider>
   );
 } 

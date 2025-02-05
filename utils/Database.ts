@@ -89,7 +89,12 @@ export const getFavoriteFlights = async (db: SQLiteDatabase) => {
         completed_at IS NULL DESC,  -- Active flights first (completed_at is NULL)
         completed_at DESC           -- Then most recently completed
     `);
-    return result;
+
+    // Convert ISO timestamps to milliseconds for SQLite compatibility
+    return result.map(flight => ({
+      ...flight,
+      favorited_at: flight.favorited_at ? new Date(flight.favorited_at).getTime() : Date.now()
+    }));
   } catch (error) {
     console.error('Error in getFavoriteFlights:', error);
     throw error;

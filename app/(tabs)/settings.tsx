@@ -10,6 +10,8 @@ import FlightDetailsSheet from '../../components/FlightDetailsSheet';
 import { FlightPhase, calculateFlightProgress } from '../../utils/flightCalculations';
 import { airlines } from '../../utils/airlines';
 import { NotificationService } from '../../utils/NotificationService';
+import { NotificationTest } from '../../components/NotificationTest';
+import { FavoriteFlight as SupabaseFavoriteFlight } from '../../utils/FavoriteFlightsService';
 
 const UPDATE_INTERVAL = 15000; // 15 seconds
 const INTERPOLATION_STEP = 1000; // 1 second
@@ -24,7 +26,7 @@ interface FavoriteFlight {
   completed_at: number | null;
   flight_duration: number | null;
   flight_data: string | null;
-  favorited_at: number;
+  favorited_at: number;  // Keep as number for SQLite
 }
 
 interface LiveFlightData {
@@ -187,8 +189,8 @@ export default function SettingsScreen() {
             if (flightProgress.currentPhase === FlightPhase.ARRIVED && !favorite.completed_at) {
               completedFlights.push(callsign);
               
-              // Mark the flight as completed in the database
-              const flightDuration = Math.floor((currentTime.getTime() - favorite.favorited_at) / 1000);
+              // Convert favorited_at ISO string to milliseconds for duration calculation
+              const flightDuration = Math.floor((currentTime.getTime() - new Date(favorite.favorited_at).getTime()) / 1000);
               await markFlightAsCompleted(
                 db,
                 callsign,
@@ -362,6 +364,7 @@ export default function SettingsScreen() {
 
   return (
     <View style={styles.container}>
+      <NotificationTest />
       <FlatList
         data={favorites}
         renderItem={({ item }) => (
